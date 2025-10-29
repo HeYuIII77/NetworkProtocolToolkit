@@ -652,7 +652,7 @@ namespace NetworkProtocolToolkit
 
             // 作者的话
             var authorLabel = new Label { Text = "作者的话", Font = new System.Drawing.Font("Microsoft Sans Serif", 11, FontStyle.Bold), Width = 940, Margin = new Padding(0, 20, 0, 5) };
-            var authorText = @"大家好！这是我根据前两年工作顺手整理的一份协议文档，把我觉得可能用到的都放进来了，也算是我个人工作的一点小收获吧，希望能帮到有需要的朋友！
+            var authorText = @"大家好！这是我根据前两年工作顺手整理的一份协议连通测试程序，把我觉得可能用到的都放进来了，也算是我个人工作的一点小收获吧，希望能帮到有需要的朋友！
 不过，里面很多协议我目前条件有限，没法全部测试。所以如果大家测试时发现任何问题，麻烦把当天的日志发到我的邮箱：heyu8888888888@163.com。先谢谢啦！";
             var authorBox = new TextBox { Left = 0, Top = 0, Width = 940, Height = 180, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Both, Font = new System.Drawing.Font("Consolas", 10), Text = authorText };
 
