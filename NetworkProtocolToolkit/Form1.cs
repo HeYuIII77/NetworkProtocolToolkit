@@ -30,11 +30,20 @@ using System.Diagnostics;
 
 namespace NetworkProtocolToolkit
 {
+    /// <summary>
+    /// 主窗体 - 协议调试工具箱窗体实现（部分）。
+    /// 该文件包含窗体的业务逻辑实现：HTTP/REST/WebSocket/FTP/SFTP/SMTP/POP3/IMAP、设备协议（S7/Modbus/Raw TCP/OPC）等功能。
+    /// Designer 相关的控件创建由 Form1.Designer.cs 管理；此处只使用那些由 Designer 注入的控件字段（如 _logBox、_httpResponseBox 等）。
+    /// </summary>
     public partial class Form1 : Form
     {
+        // 日志显示控件（在 Designer 中创建）
         private TextBox _logBox;
+
+        // 共享的 HttpClient 实例，用于所有 HTTP/REST/WebService 请求（推荐重用以节省连接开销）
         private HttpClient _httpClient = new();
 
+        // 各功能页的响应显示控件（由 Designer 初始化）
         private TextBox _httpResponseBox;
         private TextBox _restResponseBox;
         private DataGridView _dbResultGrid;
@@ -42,15 +51,20 @@ namespace NetworkProtocolToolkit
         private TextBox _opcUaEndpointBox;
         private TextBox _opcUaNodeBox;
         private TextBox _opcUaRespBox;
-        private TextBox _opcDaProgIdBox;
+        private TextBox _opcDaProgIdBox;    
         private TextBox _opcDaHostBox;
         private TextBox _opcDaRespBox;
         private TextBox _wsResponseBox;
 
+        // 日志内存与目录（线程安全访问）
         private readonly List<string> _logLines = new();
         private readonly string _logDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory ?? ".", "Log");
         private readonly object _logLock = new();
 
+        /// <summary>
+        /// 构造函数：初始化组件并准备日志目录。
+        /// 注意：不要在 Designer 文件中放置业务逻辑，事件处理放在 Form1.cs（当前文件）。
+        /// </summary>
         public Form1()
         {
             InitializeComponent();
@@ -58,15 +72,23 @@ namespace NetworkProtocolToolkit
             AppendLog("应用启动", "INFO");
         }
 
+        /// <summary>
+        /// 确保日志目录存在（静默失败以避免影响主流程）。
+        /// </summary>
         private void EnsureLogDirectory()
         {
             try
             {
                 if (!Directory.Exists(_logDir)) Directory.CreateDirectory(_logDir);
             }
-            catch { }
+            catch { /* 忽略创建目录异常，日志写入将尝试失败处理 */ }
         }
 
+        /// <summary>
+        /// 将单行日志写入当天的文件，此方法只处理文件写入（不更新 UI）。
+        /// 使用 _logLock 同步，防止并发写入冲突。
+        /// </summary>
+        /// <param name="line">要写入的日志行（不包含换行符）</param>
         private void WriteToDailyLog(string line)
         {
             try
@@ -78,9 +100,19 @@ namespace NetworkProtocolToolkit
                     File.AppendAllText(file, line + Environment.NewLine, Encoding.UTF8);
                 }
             }
-            catch { }
+            catch { /* 日志写入失败不抛出，避免影响主流程 */ }
         }
 
+        /// <summary>
+        /// 添加一条详细日志块（包含请求/响应/异常等），并尝试写入 UI 和当日日志文件。
+        /// 该方法用于记录请求-响应对，便于故障排查。
+        /// </summary>
+        /// <param name="title">日志块标题（如 "HTTP GET Request"）</param>
+        /// <param name="requestInfo">请求摘要信息（例如 URL、目标地址）</param>
+        /// <param name="requestBody">请求体（可能是 JSON 或 XML）</param>
+        /// <param name="responseInfo">响应摘要（例如状态码）</param>
+        /// <param name="responseBody">响应正文</param>
+        /// <param name="ex">如果发生异常，则传入异常对象以记录堆栈</param>
         private void AppendDetailedLog(string title, string requestInfo = null, string requestBody = null, string responseInfo = null, string responseBody = null, Exception ex = null)
         {
             var sb = new StringBuilder();
@@ -95,6 +127,7 @@ namespace NetworkProtocolToolkit
             var block = sb.ToString();
             lock (_logLock) { _logLines.Add(block); }
 
+            // 如果在非 UI 线程调用，使用 BeginInvoke 更新 UI，避免阻塞调用线程
             if (this.InvokeRequired)
                 this.BeginInvoke(new Action(() => _logBox?.AppendText(block + Environment.NewLine)));
             else
@@ -103,6 +136,13 @@ namespace NetworkProtocolToolkit
             WriteToDailyLog(block);
         }
 
+        /// <summary>
+        /// 使用 SOAP/HTTP POST 调用 WebService 并显示结果（带日志记录）。
+        /// 这是一个异步方法，UI 按钮事件应直接 await 或无返回地调用它。
+        /// </summary>
+        /// <param name="url">服务 URL</param>
+        /// <param name="soapAction">SOAPAction 头（可选）</param>
+        /// <param name="xmlBody">SOAP XML 请求体</param>
         private async Task DoWebServiceTest(string url, string soapAction, string xmlBody)
         {
             if (string.IsNullOrWhiteSpace(url))
@@ -144,6 +184,12 @@ namespace NetworkProtocolToolkit
 
         #region Protocol implementations with MessageBox results
 
+        /// <summary>
+        /// 将一条简短日志追加到 UI（_logBox）和内存 + 当日日志文件。
+        /// 该方法是线程安全的，会在非 UI 线程时使用 BeginInvoke 更新 UI。
+        /// </summary>
+        /// <param name="text">日志文本</param>
+        /// <param name="level">日志等级（默认 INFO）</param>
         private void AppendLog(string text, string level = "INFO")
         {
             var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [{level}] {text}";
@@ -166,6 +212,10 @@ namespace NetworkProtocolToolkit
             WriteToDailyLog(line);
         }
 
+        /// <summary>
+        /// 执行 HTTP GET 请求并显示响应信息，包含日志记录和错误处理。
+        /// </summary>
+        /// <param name="url">目标 URL</param>
         private async Task DoHttpGet(string url)
         {
             if (string.IsNullOrWhiteSpace(url))
@@ -201,6 +251,11 @@ namespace NetworkProtocolToolkit
             }
         }
 
+        /// <summary>
+        /// 执行 HTTP POST（application/json）请求并显示响应，带日志记录。
+        /// </summary>
+        /// <param name="url">目标 URL</param>
+        /// <param name="jsonBody">JSON 请求体</param>
         private async Task DoHttpPost(string url, string jsonBody)
         {
             if (string.IsNullOrWhiteSpace(url))
@@ -238,6 +293,11 @@ namespace NetworkProtocolToolkit
             }
         }
 
+        /// <summary>
+        /// 使用 ClientWebSocket 建立连接、发送字符串并接收回显（演示 WebSocket 使用）。
+        /// 注：使用较短的超时时间并做基本错误处理。
+        /// </summary>
+        /// <param name="uri">WebSocket URI（ws:// 或 wss://）</param>
         private async Task DoWebSocketEcho(string uri)
         {
             if (!Uri.TryCreate(uri, UriKind.Absolute, out var u))
@@ -278,6 +338,13 @@ namespace NetworkProtocolToolkit
             }
         }
 
+        /// <summary>
+        /// 使用 FtpWebRequest 列出 FTP 根目录（不支持复杂认证或 FTPS/TLS 的高级配置）。
+        /// </summary>
+        /// <param name="host">FTP 主机</param>
+        /// <param name="portText">端口文本（未使用时忽略）</param>
+        /// <param name="user">用户名</param>
+        /// <param name="pass">密码</param>
         private async Task DoFtpList(string host, string portText, string user, string pass)
         {
             if (string.IsNullOrWhiteSpace(host))
@@ -319,6 +386,15 @@ namespace NetworkProtocolToolkit
             }
         }
 
+        /// <summary>
+        /// 使用 Renci.SshNet 实现的 SFTP 列表功能（支持密码或私钥认证）。
+        /// 注意：私钥可能需要密码保护，私钥加载失败会提示用户。
+        /// </summary>
+        /// <param name="host">SFTP 主机</param>
+        /// <param name="portText">端口文本（解析为 int）</param>
+        /// <param name="user">用户名</param>
+        /// <param name="pass">密码</param>
+        /// <param name="privateKeyPath">私钥路径（可选）</param>
         private async Task DoSftpList_Strong(string host, string portText, string user, string pass, string privateKeyPath)
         {
             if (string.IsNullOrWhiteSpace(host))
@@ -387,9 +463,14 @@ namespace NetworkProtocolToolkit
                 AppendDetailedLog("SFTP Error", host + ":" + port, null, null, null, ex);
             }
 
+            // 该方法为异步签名，但 SftpClient 的连接/列出是同步 API，方法最后通过 Task.Yield 保持异步契约
             await Task.Yield();
         }
 
+        /// <summary>
+        /// 使用 System.Net.Mail.SmtpClient 发送邮件（最简单的示例，适合测试）。
+        /// 注意：SmtpClient 在某些场景下已被标记为过时，但对于简单发送仍可用；生产建议使用 MailKit 等库。
+        /// </summary>
         private async Task DoSendSmtp(string host, string portText, string user, string pass, string from, string to, string subject, string body, bool EnableSsl)
         {
             if (string.IsNullOrWhiteSpace(host))
@@ -426,6 +507,9 @@ namespace NetworkProtocolToolkit
             }
         }
 
+        /// <summary>
+        /// 发送 REST POST（application/json），并把响应写入对应的响应框。
+        /// </summary>
         private async Task DoRestPost(string url, string json)
         {
             if (string.IsNullOrWhiteSpace(url))
@@ -463,6 +547,9 @@ namespace NetworkProtocolToolkit
             }
         }
 
+        /// <summary>
+        /// 使用 MailKit 的 Pop3Client 获取邮件摘要（演示如何使用 MailKit）。
+        /// </summary>
         private async Task DoPop3MailKit(string host, string portText, string user, string pass, bool useSsl)
         {
             if (string.IsNullOrWhiteSpace(host))
@@ -507,6 +594,9 @@ namespace NetworkProtocolToolkit
             }
         }
 
+        /// <summary>
+        /// 使用 MailKit 的 ImapClient 获取收件箱摘要。
+        /// </summary>
         private async Task DoImapMailKit(string host, string portText, string user, string pass, bool useSsl)
         {
             if (string.IsNullOrWhiteSpace(host))
@@ -553,6 +643,11 @@ namespace NetworkProtocolToolkit
             }
         }
 
+        /// <summary>
+        /// 测试目标主机端口连通性（TCP 连接），返回结果描述文本并弹窗显示。
+        /// 超时时间为 5 秒。
+        /// </summary>
+        /// <returns>用于显示的结果字符串或错误文本</returns>
         private async Task<string> TestIpPort(string hostOrIp, string portText)
         {
             if (string.IsNullOrWhiteSpace(hostOrIp) || string.IsNullOrWhiteSpace(portText) || !int.TryParse(portText, out var port))
@@ -596,6 +691,10 @@ namespace NetworkProtocolToolkit
             }
         }
 
+        /// <summary>
+        /// 构建 SQL Server 连接字符串（尽可能容错）。
+        /// 生产环境请使用官方连接字符串构建器类（如 SqlConnectionStringBuilder）。
+        /// </summary>
         private string BuildSqlServerConnectionString(string host, string port, string database, string user, string pass)
         {
             if (string.IsNullOrWhiteSpace(host)) return "";
@@ -611,6 +710,9 @@ namespace NetworkProtocolToolkit
             return builder.ToString();
         }
 
+        /// <summary>
+        /// 构建 Oracle 连接字符串（简化版本）。
+        /// </summary>
         private string BuildOracleConnectionString(string host, string port, string serviceName, string user, string pass)
         {
             if (string.IsNullOrWhiteSpace(host)) return "";
@@ -625,6 +727,9 @@ namespace NetworkProtocolToolkit
             return sb.ToString();
         }
 
+        /// <summary>
+        /// 构建 MySQL 连接字符串（简化版本）。
+        /// </summary>
         private string BuildMySqlConnectionString(string host, string port, string database, string user, string pass)
         {
             if (string.IsNullOrWhiteSpace(host)) return "";
@@ -637,6 +742,12 @@ namespace NetworkProtocolToolkit
             return sb.ToString();
         }
 
+        /// <summary>
+        /// 测试数据库连接（支持通过反射加载不同的 ADO.NET 驱动并尝试 Open / OpenAsync）。
+        /// 此函数会在 UI 上弹窗并将结果写入日志与结果表格。
+        /// </summary>
+        /// <param name="providerKey">驱动标识（如 sqlserver/oracle/mysql）</param>
+        /// <param name="connectionString">完整连接字符串</param>
         private async Task TestDbConnection(string providerKey, string connectionString)
         {
             var timestamp = DateTime.Now;
@@ -685,6 +796,7 @@ namespace NetworkProtocolToolkit
                     if (prop != null) prop.SetValue(connInstance, connectionString);
                 }
 
+                // 尝试 OpenAsync -> Open -> 报错处理（兼容不同驱动实现）
                 var openAsyncMethod = connType.GetMethod("OpenAsync", Type.EmptyTypes) ?? connType.GetMethod("OpenAsync", new[] { typeof(CancellationToken) });
                 if (openAsyncMethod != null)
                 {
@@ -739,6 +851,10 @@ namespace NetworkProtocolToolkit
             }
         }
 
+        /// <summary>
+        /// 根据 providerKey 返回对应的连接类型（反射查找），支持多种常见驱动名称。
+        /// 返回 null 表示未找到对应驱动。
+        /// </summary>
         private Type GetConnectionTypeForProvider(string providerKey)
         {
             if (providerKey == "sqlserver")
@@ -777,6 +893,10 @@ namespace NetworkProtocolToolkit
             return null;
         }
 
+        /// <summary>
+        /// 对连接字符串做简单掩码处理，隐藏 password 字段以避免日志泄露敏感信息。
+        /// 如果字符串过长，会进行截断显示。
+        /// </summary>
         private string MaskConnectionString(string cs)
         {
             if (string.IsNullOrEmpty(cs)) return "";
@@ -794,6 +914,10 @@ namespace NetworkProtocolToolkit
             return cs.Length > 120 ? cs.Substring(0, 120) + "..." : cs;
         }
 
+        /// <summary>
+        /// 将数据库检测结果插入结果表格（如果存在）。
+        /// 该方法会在 UI 线程执行插入（若当前不在 UI 线程则使用 BeginInvoke）。
+        /// </summary>
         private void AddDbResultRow(DateTime time, string dbType, string target, string result, long elapsedMs, string message)
         {
             if (_dbResultGrid == null) return;
@@ -817,6 +941,10 @@ namespace NetworkProtocolToolkit
             _dbResultGrid.Rows.Insert(0, row);
         }
 
+        /// <summary>
+        /// 简单的 Modbus TCP 读取示例（手动构造 MBAP + PDU），仅用于测试和调试。
+        /// 注意：此实现为最小示例，未实现完整的异常码/异常 PDU 解析。
+        /// </summary>
         private async Task TestModbusTcp(string host, string portText, string unitIdText, string startText, string qtyText)
         {
             if (string.IsNullOrWhiteSpace(host))
@@ -904,6 +1032,9 @@ namespace NetworkProtocolToolkit
             }
         }
 
+        /// <summary>
+        /// 原始 TCP 发送/接收的简易示例，发送文本并尝试读取少量响应。
+        /// </summary>
         private async Task TestRawTcp(string host, string portText, string textToSend)
         {
             if (string.IsNullOrWhiteSpace(host))
@@ -943,7 +1074,7 @@ namespace NetworkProtocolToolkit
                     var read = await stream.ReadAsync(buffer, 0, buffer.Length);
                     if (read > 0) ms.Write(buffer, 0, read);
                 }
-                catch { }
+                catch { /* 读取超时或短连接时忽略 */ }
 
                 var resp = Encoding.UTF8.GetString(ms.ToArray());
                 string result = $"收到（{resp.Length} 字节）：{FirstChars(resp, 2000)}";
@@ -964,6 +1095,11 @@ namespace NetworkProtocolToolkit
 
         #region Device / Industrial protocol helpers
 
+        /// <summary>
+        /// 基于 S7.Net 的 PLC 读写尝试（通过反射兼容不同的 S7.Net 实现）。
+        /// 该方法会尝试使用反射构造 Plc 对象并调用 Open/Read/Write/Close。
+        /// 若未安装 S7.Net 库，会提示用户安装依赖包。
+        /// </summary>
         private async Task TestS7ReadWrite(string host, string portText, string address, string writeValue)
         {
             if (string.IsNullOrWhiteSpace(host))
@@ -976,6 +1112,7 @@ namespace NetworkProtocolToolkit
 
             try
             {
+                // 通过反射兼容不同的 S7.Net 包名（S7NetPlus / S7netplus / S7.Net）
                 var plcType = Type.GetType("S7.Net.Plc, S7NetPlus") ?? Type.GetType("S7.Net.Plc, S7netplus") ?? Type.GetType("S7.Net.Plc, S7.Net");
                 if (plcType == null)
                 {
@@ -986,6 +1123,7 @@ namespace NetworkProtocolToolkit
                     return;
                 }
 
+                // 寻找 CpuType（枚举）并尝试构造 Plc 对象（兼容多种构造函数签名）
                 var cpuType = plcType.Assembly.GetType("S7.Net.CpuType") ?? plcType.Assembly.GetType("S7.Net.EnumTypes.CpuType");
                 object cpu = null;
                 if (cpuType != null && Enum.GetNames(cpuType).Contains("S71200")) cpu = Enum.Parse(cpuType, "S71200");
@@ -1097,6 +1235,7 @@ namespace NetworkProtocolToolkit
                 _deviceProtoResponseBox?.AppendText("错误: " + ex.Message + Environment.NewLine);
             }
 
+            // 保持异步签名，方法体主要为同步反射调用
             await Task.Yield();
         }
 
@@ -1104,6 +1243,10 @@ namespace NetworkProtocolToolkit
 
         #region OPC UA and OPC DA helpers
 
+        /// <summary>
+        /// 通过检测已安装的客户端库（Opc.UaFx 或 OPC Foundation 官方库）尝试读取 OPC UA 节点。
+        /// 对于不同库使用反射调用以避免编译时强依赖。
+        /// </summary>
         private async Task DoOpcUaRead(string endpointUrl, string nodeId)
         {
             if (string.IsNullOrWhiteSpace(endpointUrl))
@@ -1119,6 +1262,7 @@ namespace NetworkProtocolToolkit
 
             AppendLog($"OPC UA -> {endpointUrl} 读取 {nodeId}");
 
+            // 优先尝试 Opc.UaFx（更简单的 API），使用反射避免强耦合
             var uaFxType = Type.GetType("Opc.UaFx.Client.OpcClient, Opc.UaFx.Client");
             if (uaFxType != null)
             {
@@ -1162,12 +1306,13 @@ namespace NetworkProtocolToolkit
                 }
             }
 
+            // 如果存在官方 OPC UA 库，但调用过程较复杂，则给出提示
             var sessionType = Type.GetType("Opc.Ua.Client.Session, OPCFoundation.NetStandard.Opc.Ua");
             if (sessionType != null)
             {
-                string infoMsg = "检测到 OPC Foundation .NET Standard 库，但示例调用较复杂。建议使用 Opc.UaFx 客户端以简化操作。";
+                string infoMsg = "检测到 OPC Foundation .NET Standard 库，但示例调用较复杂。建议使用 Opc.UaFx.Client 以简化操作。";
                 MessageBox.Show(infoMsg, "信息", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                AppendLog("检测到 OPC Foundation .NET Standard 库，但示例调用较复杂。建议使用 Opc.UaFx 客户端以简化操作。", "INFO");
+                AppendLog("检测到 OPC Foundation .NET Standard 库，但示例调用较复杂。建议使用 Opc.UaFx.Client 以简化操作。", "INFO");
                 _opcUaRespBox.Text = "检测到官方 OPC UA 库，但当前示例不自动调用。建议安装 Opc.UaFx.Client 并重试。";
                 return;
             }
@@ -1178,6 +1323,9 @@ namespace NetworkProtocolToolkit
             _opcUaRespBox.Text = "未检测到 OPC UA 客户端库。请安装 Opc.UaFx.Client 并重试。";
         }
 
+        /// <summary>
+        /// OPC UA 写节点示例（反射实现，优先使用 Opc.UaFx.Client）。
+        /// </summary>
         private async Task DoOpcUaWrite(string endpointUrl, string nodeId, string value)
         {
             if (string.IsNullOrWhiteSpace(endpointUrl) || string.IsNullOrWhiteSpace(nodeId))
@@ -1240,6 +1388,10 @@ namespace NetworkProtocolToolkit
             await Task.Yield();
         }
 
+        /// <summary>
+        /// 使用 COM（OPC DA）进行读写操作（通过 ProgID 调用），仅适用于运行在支持 COM 的 Windows 环境。
+        /// 使用后会尝试释放 COM 对象。
+        /// </summary>
         private async Task DoOpcDaReadWrite(string host, string progId, string itemId, string writeValue)
         {
             if (string.IsNullOrWhiteSpace(progId))
@@ -1314,12 +1466,18 @@ namespace NetworkProtocolToolkit
 
         #endregion
 
+        /// <summary>
+        /// 截取字符串前若干字符并添加省略号（用于日志摘要展示）。
+        /// </summary>
         private string FirstChars(string text, int maxLen)
         {
             if (string.IsNullOrEmpty(text)) return "";
             return text.Length <= maxLen ? text : text.Substring(0, maxLen) + "...";
         }
 
+        /// <summary>
+        /// 打开日志目录（在文件资源管理器中）。
+        /// </summary>
         private void OpenLogFolder()
         {
             try
@@ -1334,6 +1492,10 @@ namespace NetworkProtocolToolkit
             }
         }
 
+        /// <summary>
+        /// 将当天日志目录压缩为 zip 并提示保存位置（简单实现）。
+        /// 注意：若日志目录很大，该操作可能耗时且占用磁盘空间。
+        /// </summary>
         private void ExportTodayLog()
         {
             try
