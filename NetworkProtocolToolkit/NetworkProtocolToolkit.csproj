@@ -1,0 +1,41 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+   <PublishSingleFile>true</PublishSingleFile>
+  <SelfContained>true</SelfContained>
+  <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  <PublishTrimmed>false</PublishTrimmed>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationIcon>sw2ls-dcn0o-001.ico</ApplicationIcon>
+    <Title>Network Protocol Toolkit</Title>
+    <PackageIcon>laptop.png</PackageIcon>
+    <AssemblyTitle></AssemblyTitle>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <Authors>HeYuIII77</Authors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="sw2ls-dcn0o-001.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="C:\Users\30694\Downloads\laptop.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MailKit" Version="4.14.1" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.2" />
+    <PackageReference Include="MySql.Data" Version="9.4.0" />
+    <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua" Version="1.5.377.21" />
+    <PackageReference Include="Renci.SshNet.Async" Version="1.4.0" />
+    <PackageReference Include="S7netplus" Version="0.20.0" />
+  </ItemGroup>
+
+</Project>
