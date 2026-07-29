@@ -42,3 +42,21 @@ Modified:
 Decisions:
 - Tab 布局最终选择 ListBox 左侧导航（放弃 OwnerDraw 垂直 Tab、旋转画布等方案）
 - 设计器兼容方案：InitializeComponent 只放基本属性，复杂逻辑放 InitializeUI()
+
+## 2026-07-29
+
+Completed:
+- 修复输入框标题过长被遮挡（混合方案：缩短 5 个 + 多行 2 个）
+- 修复 Label/Panel 行高不足导致文字底部被裁
+- 修复 HTTP 认证下拉框被遮挡
+- 统一所有 Panel 行高为 34px
+- 发布自包含单文件 exe + zip 分发包
+
+Modified:
+- `Form1.cs`: LabeledTextBox 方法新增 labelMultiline 参数；Panel 高度 30→34、Label 高度 20→26、Top 4→2
+- `Form1.cs`: 5 个标题文本缩短、2 个标题改为多行显示
+- `Form1.cs`: 5 个硬编码 Panel 高度从 30 对齐到 34
+
+Decisions:
+- 标题过长采用混合方案：有指导意义的保留完整说明用多行，其余缩短文本
+- 发布为自包含单文件 exe（win-x64），zip 打包分发

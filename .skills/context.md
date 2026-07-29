@@ -1,6 +1,6 @@
 # Current Development Context
 
-**Last updated**: 2026-07-28
+**Last updated**: 2026-07-29
 
 ## Currently Working On
 - 无活跃开发任务
@@ -9,16 +9,12 @@
 - UI 布局已稳定为 ListBox 左侧导航方案
 
 ## Completed This Session
-- 新增"网络诊断"Tab：Ping、DNS 解析、端口扫描、SSL 证书检查
-- 增强 HTTP/HTTPS Tab：PUT/DELETE/PATCH + 自定义 Headers + Basic/Bearer 认证
-- 增强 FTP/SFTP Tab：FTP 上传/下载/删除/创建目录 + SSH 远程命令执行
-- 增强 Modbus TCP：FC05/FC06/FC16 写操作
-- 新增 PostgreSQL 数据库连接支持（Npgsql 8.0.3）
-- 修复端口扫描卡 UI：实时进度反馈 + 停止按钮 + CancellationTokenSource
-- 修复 OPC UA NullReferenceException：_opcUaRespBox 未赋值
-- UI 布局多次迭代：顶部水平 Tab → 左侧垂直 Tab(OwnerDraw) → 旋转画布 → DirectionVertical → 顶部多行 → 最终 ListBox 左侧导航
-- 修复设计器兼容性：InitializeComponent 精简为基本属性，InitializeUI 移到 Form1.cs，Designtime 跳过
-- 导航面板宽度从 SplitContainer 改为双 Panel 方案（Dock=Left + Dock=Fill）
+- 修复输入框标题过长被遮挡：缩短 5 个标题 + 2 个改为多行显示
+- 修复 Label 高度不足导致文字底部被裁：Panel 30→34、Label 20→26、Top 4→2
+- 修复 HTTP 认证下拉框被遮挡：authTypePanel 高度对齐
+- 统一所有硬编码 Height=30 的 Panel（SMTP SSL、Modbus FC、POP3 SSL、IMAP SSL）
+- LabeledTextBox 方法新增 labelMultiline 参数支持多行标题
+- 发布自包含单文件 exe（75MB）+ zip 分发包（74MB），包含所有 .NET 运行时和 NuGet 依赖
 
 ## Not Yet Complete
 - None

@@ -59,3 +59,23 @@
 **Impact**: 左侧 Panel 固定 600px 宽，右侧 Panel 自动填充
 
 **Status**: Active
+
+## 2026-07-29
+
+**Decision**: 标题过长采用混合方案 — 缩短文本 + 多行显示
+
+**Reason**: Label 宽度 200px 约显示 16 个汉字，超出被 TextBox 遮挡。大部分标题去掉括号说明即可缩短；`自定义 Headers` 和 `端口（Port，可留空使用默认）` 的括号内容有实际指导意义，保留并改为多行显示
+
+**Impact**: LabeledTextBox 方法新增 labelMultiline 参数；6 个标题文本调整
+
+**Status**: Active
+
+---
+
+**Decision**: 发布为自包含单文件 exe（win-x64）+ zip 分发
+
+**Reason**: 用户希望拿到 exe 直接运行，不依赖 .NET 运行时，不需要额外下载
+
+**Impact**: 发布产物 75MB exe + 74MB zip（含原生 DLL），通过 `dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true` 构建
+
+**Status**: Active
