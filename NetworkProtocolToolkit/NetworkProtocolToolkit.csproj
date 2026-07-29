@@ -9,6 +9,8 @@
     <TargetFramework>net8.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationIcon>sw2ls-dcn0o-001.ico</ApplicationIcon>
     <Title>Network Protocol Toolkit</Title>
@@ -35,6 +37,7 @@
     <PackageReference Include="MySql.Data" Version="9.4.0" />
     <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua" Version="1.5.377.21" />
     <PackageReference Include="Renci.SshNet.Async" Version="1.4.0" />
+    <PackageReference Include="Npgsql" Version="8.0.3" />
     <PackageReference Include="S7netplus" Version="0.20.0" />
   </ItemGroup>
 
